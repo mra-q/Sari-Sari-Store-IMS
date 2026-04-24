@@ -1,0 +1,10 @@
+REM ============================================
+REM  COPY AND PASTE THIS INTO YOUR TERMINAL
+REM ============================================
+
+cd "c:\IT ELECTIVE 4\FINALS\Inventory" && npx expo start --clear
+
+REM ============================================
+REM  That's it! Just copy the line above
+REM  (without the REM) and paste in terminal
+REM ============================================
