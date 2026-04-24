@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import apiClient from './apiClient';
 import type { OwnerSignupInput, User } from '@/types/user';
 import { getUserDisplayName } from '@/utils/helpers';
@@ -56,16 +57,62 @@ const normalizeUser = (user: BackendUser): User => {
   return normalizedUser;
 };
 
+const extractAuthErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    const apiError = data?.error;
+
+    if (typeof data?.detail === 'string') {
+      return data.detail;
+    }
+
+    if (typeof apiError === 'string') {
+      return apiError;
+    }
+
+    if (Array.isArray(apiError?.non_field_errors) && apiError.non_field_errors[0]) {
+      return apiError.non_field_errors[0];
+    }
+
+    for (const value of Object.values(apiError ?? {})) {
+      if (Array.isArray(value) && value[0]) {
+        return String(value[0]);
+      }
+      if (typeof value === 'string' && value) {
+        return value;
+      }
+    }
+
+    if (!error.response) {
+      if (error.code === 'ECONNABORTED') {
+        return 'Login request timed out. Please try again.';
+      }
+
+      return 'Cannot reach the backend server. Please check your internet connection and deployed API URL.';
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export const login = async (email: string, password: string): Promise<User> => {
-  const response = await apiClient.post('/auth/login/', { email, password });
-  const { user, access, refresh } = response.data;
-  const normalizedUser = normalizeUser(user);
-  
-  await AsyncStorage.setItem('access_token', access);
-  await AsyncStorage.setItem('refresh_token', refresh);
-  await AsyncStorage.setItem('user', JSON.stringify(normalizedUser));
-  
-  return normalizedUser;
+  try {
+    const response = await apiClient.post('/auth/login/', { email, password });
+    const { user, access, refresh } = response.data;
+    const normalizedUser = normalizeUser(user);
+    
+    await AsyncStorage.setItem('access_token', access);
+    await AsyncStorage.setItem('refresh_token', refresh);
+    await AsyncStorage.setItem('user', JSON.stringify(normalizedUser));
+    
+    return normalizedUser;
+  } catch (error) {
+    throw new Error(extractAuthErrorMessage(error, 'Unable to sign in.'));
+  }
 };
 
 export const refreshSession = async (): Promise<User> => {
@@ -105,7 +152,7 @@ export const registerOwner = async (payload: OwnerSignupInput): Promise<User> =>
     console.error('❌ Signup failed:', error.message);
     console.error('Response:', error.response?.data);
     console.error('Status:', error.response?.status);
-    throw error;
+    throw new Error(extractAuthErrorMessage(error, 'Unable to create your account.'));
   }
 };
 

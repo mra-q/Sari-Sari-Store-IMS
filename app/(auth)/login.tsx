@@ -36,14 +36,14 @@ export default function Login() {
               : '/(owner)';
           router.replace(destination);
         },
-        onError: () => {
+        onError: (error) => {
           Animated.sequence([
             Animated.timing(scaleAnim, { toValue: 0.98, duration: 100, useNativeDriver: true }),
             Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
           ]).start();
           Alert.alert(
             'Login Failed',
-            'Unable to sign in. Please check your email, password, and backend connection.',
+            error.message || 'Unable to sign in.',
           );
         },
       }

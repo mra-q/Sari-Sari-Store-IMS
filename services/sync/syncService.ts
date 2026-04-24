@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { networkService } from './networkService';
 import { queueService } from './queueService';
 import { productRepository } from '../database/repositories/productRepository';
@@ -6,8 +5,7 @@ import { inventoryRepository } from '../database/repositories/inventoryRepositor
 import { stockMovementRepository } from '../database/repositories/stockMovementRepository';
 import { cycleCountRepository } from '../database/repositories/cycleCountRepository';
 import { restockRequestRepository } from '../database/repositories/restockRequestRepository';
-
-const API_BASE_URL = 'http://localhost:8000/api';
+import apiClient from '../apiClient';
 
 export const syncService = {
   isSyncing: false,
@@ -61,7 +59,7 @@ export const syncService = {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/sync/`, {
+      const response = await apiClient.post('/sync/', {
         creates,
         updates,
         deletes
@@ -96,7 +94,7 @@ export const syncService = {
   async pullChanges(): Promise<void> {
     try {
       // Get last sync timestamp (simplified - you can store this in AsyncStorage)
-      const response = await axios.get(`${API_BASE_URL}/sync/pull/`);
+      const response = await apiClient.get('/sync/pull/');
 
       const { products, inventory, stock_movements, cycle_counts, restock_requests } = response.data;
 
