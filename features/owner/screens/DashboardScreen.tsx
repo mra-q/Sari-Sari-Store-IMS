@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -23,7 +24,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { getInventorySummary, getLowStockProducts } from '@/services/inventoryService';
-import { getStockInsights, type InsightsPeriod } from '@/services/stockInsightsService';
+import { getStockInsights, type InsightsPeriod, type InsightsFilter } from '@/services/stockInsightsService';
 import type { InventorySummary, Product } from '@/types/product';
 import { formatCurrency } from '@/utils/helpers';
 import CardboardHeader from '@/components/CardboardHeader';
@@ -155,7 +156,7 @@ function LineInsightsChart({ data }: { data: ChartPoint[] }) {
 
           {points.map((point, index) => (
             <Circle
-              key={`point-${data[index]?.label}`}
+              key={`point-${index}`}
               cx={point.x}
               cy={point.y}
               r={index === points.length - 1 ? 4.5 : 3}
@@ -167,8 +168,8 @@ function LineInsightsChart({ data }: { data: ChartPoint[] }) {
         </Svg>
 
         <View style={styles.xAxisRow}>
-          {data.map((item) => (
-            <Text key={item.label} style={styles.xAxisLabel}>
+          {data.map((item, index) => (
+            <Text key={`label-${index}`} style={styles.xAxisLabel}>
               {item.label}
             </Text>
           ))}
@@ -254,9 +255,13 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>('movement');
   const [period, setPeriod] = useState<InsightsPeriod>('monthly');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [stockOutData, setStockOutData] = useState<ChartPoint[]>([]);
   const [productData, setProductData] = useState<ProductBar[]>([]);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   const loadData = useCallback(async (isRefresh = false) => {
     try {
@@ -267,10 +272,15 @@ export default function DashboardScreen() {
         setLoading(true);
       }
 
+      const filter: InsightsFilter = { period };
+      if (selectedYear) filter.year = selectedYear;
+      if (selectedMonth) filter.month = selectedMonth;
+      if (selectedWeek) filter.week = selectedWeek;
+
       const [summaryData, lowStockData, insightsData] = await Promise.all([
         getInventorySummary(),
         getLowStockProducts(),
-        getStockInsights(period),
+        getStockInsights(filter),
       ]);
 
       setSummary(summaryData);
@@ -305,7 +315,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [period]);
+  }, [period, selectedYear, selectedMonth, selectedWeek]);
 
   useEffect(() => {
     loadData();
@@ -323,12 +333,22 @@ export default function DashboardScreen() {
   );
 
   const periodLabel = useMemo(() => {
-    switch (period) {
-      case 'weekly': return 'Weekly';
-      case 'annual': return 'Annual';
-      default: return 'Monthly';
+    if (selectedMonth && selectedYear) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${monthNames[selectedMonth - 1]} ${selectedYear}`;
     }
-  }, [period]);
+    if (selectedWeek && selectedYear) {
+      return `Week ${selectedWeek}, ${selectedYear}`;
+    }
+    if (selectedYear && !selectedMonth && !selectedWeek) {
+      return `Year ${selectedYear}`;
+    }
+    switch (period) {
+      case 'weekly': return 'Last 7 Days';
+      case 'annual': return 'Last 12 Months';
+      default: return 'Last 6 Months';
+    }
+  }, [period, selectedYear, selectedMonth, selectedWeek]);
 
   const recentStockOutTotal = useMemo(
     () => stockOutData.reduce((sum, item) => sum + item.value, 0),
@@ -347,10 +367,41 @@ export default function DashboardScreen() {
   const topProductCategory = productData[0];
 
   const periodOptions: { value: InsightsPeriod; label: string }[] = [
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'annual', label: 'Annual' },
+    { value: 'weekly', label: 'Last 7 Days' },
+    { value: 'monthly', label: 'Last 6 Months' },
+    { value: 'annual', label: 'Last 12 Months' },
   ];
+
+  const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  const applyFilter = () => {
+    setShowFilterModal(false);
+    loadData();
+  };
+
+  const resetFilter = () => {
+    setPeriod('monthly');
+    setSelectedYear(new Date().getFullYear());
+    setSelectedMonth(null);
+    setSelectedWeek(null);
+    setShowFilterModal(false);
+  };
 
   const heroHighlights = useMemo(
     () => [
@@ -535,7 +586,7 @@ export default function DashboardScreen() {
 
                 <TouchableOpacity 
                   style={styles.insightsFilter}
-                  onPress={() => setShowPeriodDropdown(true)}
+                  onPress={() => setShowFilterModal(true)}
                 >
                   <Ionicons name="calendar-outline" size={14} color="#6B7280" />
                   <Text style={styles.insightsFilterText}>{periodLabel}</Text>
@@ -695,6 +746,151 @@ export default function DashboardScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.filterModalOverlay}>
+          <View style={styles.filterModalContent}>
+            <View style={styles.filterModalHeader}>
+              <Text style={styles.filterModalTitle}>Filter Dashboard</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={styles.filterModalBody}
+              contentContainerStyle={styles.filterModalBodyContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <Text style={styles.filterSectionLabel}>Period Type</Text>
+              <View style={styles.filterButtonGroup}>
+                {periodOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterButton,
+                      period === option.value && styles.filterButtonActive,
+                    ]}
+                    onPress={() => {
+                      setPeriod(option.value);
+                      setSelectedMonth(null);
+                      setSelectedWeek(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterButtonText,
+                      period === option.value && styles.filterButtonTextActive,
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.filterSectionLabel}>Specific Filters</Text>
+              
+              <Text style={styles.filterLabel}>Year</Text>
+              <View style={styles.filterButtonGroup}>
+                {yearOptions.map((year) => (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.filterYearButton,
+                      selectedYear === year && styles.filterButtonActive,
+                    ]}
+                    onPress={() => setSelectedYear(year)}
+                  >
+                    <Text style={[
+                      styles.filterButtonText,
+                      selectedYear === year && styles.filterButtonTextActive,
+                    ]}>
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.filterLabel}>Month (Optional)</Text>
+              <View style={styles.filterButtonGroup}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterYearButton,
+                    selectedMonth === null && styles.filterButtonActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedMonth(null);
+                    setSelectedWeek(null);
+                  }}
+                >
+                  <Text style={[
+                    styles.filterButtonText,
+                    selectedMonth === null && styles.filterButtonTextActive,
+                  ]}>
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {monthOptions.map((month) => (
+                  <TouchableOpacity
+                    key={month.value}
+                    style={[
+                      styles.filterMonthButton,
+                      selectedMonth === month.value && styles.filterButtonActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedMonth(month.value);
+                      setSelectedWeek(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterButtonText,
+                      selectedMonth === month.value && styles.filterButtonTextActive,
+                    ]}>
+                      {month.label.slice(0, 3)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.filterLabel}>Week (Optional)</Text>
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Enter week number (1-52)"
+                keyboardType="number-pad"
+                value={selectedWeek?.toString() || ''}
+                onChangeText={(text) => {
+                  const week = parseInt(text);
+                  if (text === '') {
+                    setSelectedWeek(null);
+                  } else if (week >= 1 && week <= 52) {
+                    setSelectedWeek(week);
+                    setSelectedMonth(null);
+                  }
+                }}
+              />
+            </ScrollView>
+
+            <View style={styles.filterModalFooter}>
+              <TouchableOpacity
+                style={styles.filterResetButton}
+                onPress={resetFilter}
+              >
+                <Text style={styles.filterResetButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.filterApplyButton}
+                onPress={applyFilter}
+              >
+                <Text style={styles.filterApplyButtonText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showPeriodDropdown}
@@ -1417,6 +1613,144 @@ const styles = StyleSheet.create({
   },
   dropdownItemTextActive: {
     color: '#2B3A7E',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  filterModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    flexShrink: 1,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  filterModalTitle: {
+    fontSize: 18,
+    color: '#0F172A',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  filterModalBody: {
+    maxHeight: 400,
+  },
+  filterModalBodyContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 24,
+  },
+  filterSectionLabel: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: 'Poppins_600SemiBold',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Poppins_500Medium',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  filterButtonGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterButtonActive: {
+    backgroundColor: '#2B3A7E',
+    borderColor: '#2B3A7E',
+  },
+  filterButtonText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Poppins_500Medium',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  filterYearButton: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterMonthButton: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: 'Poppins_400Regular',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  filterResetButton: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterResetButtonText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  filterApplyButton: {
+    flex: 1,
+    backgroundColor: '#2B3A7E',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  filterApplyButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
     fontFamily: 'Poppins_600SemiBold',
   },
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,13 +9,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '@/components/Header';
 import { RoleBasedView } from '@/components/RoleBasedView';
 import ActivityLogList from '@/features/shared/components/ActivityLogList';
-import { getProductById } from '@/services/productService';
+import { getProductById, deleteProduct } from '@/services/productService';
 import { getStockMovements } from '@/services/stockMovementService';
+import { createRestockRequest } from '@/services/restockRequestService';
 import type { Product } from '@/types/product';
 import type { StockMovement } from '@/types/stockMovement';
 import { formatCurrency } from '@/utils/helpers';
@@ -35,10 +37,20 @@ export default function ProductDetailsScreen() {
   const [loadingMovements, setLoadingMovements] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  useEffect(() => {
+  const loadProduct = React.useCallback(() => {
     if (!productId) return;
     getProductById(productId).then(setProduct);
   }, [productId]);
+
+  useEffect(() => {
+    loadProduct();
+  }, [loadProduct]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProduct();
+    }, [loadProduct])
+  );
 
   useEffect(() => {
     if (activeTab !== 'movements' || !productId) return;
@@ -54,13 +66,46 @@ export default function ProductDetailsScreen() {
   const handleAdjust = () => {
     router.push({
       pathname: isOwner ? '/(owner)/stock-adjustment' : '/(staff)/stock-adjustment',
-      params: { productId },
+      params: { productId, returnTo: `/product/${productId}` },
     });
   };
 
   const handleEdit = () => {
     if (!product) return;
-    router.push({ pathname: '/(owner)/edit-product', params: { id: product.id } });
+    router.push({ pathname: '/(owner)/edit-product', params: { id: product.id, from: 'details' } });
+  };
+
+  const handleDelete = () => {
+    if (!product) return;
+    Alert.alert(
+      'Delete Product',
+      `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteProduct(product.id);
+              Alert.alert('Success', 'Product deleted successfully.', [
+                { text: 'OK', onPress: () => router.push('/(owner)/product-management') },
+              ]);
+            } catch (err: any) {
+              Alert.alert('Error', err?.message ?? 'Failed to delete product.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRequestRestock = () => {
+    if (!product) return;
+    router.push({
+      pathname: '/(staff)/restock-request',
+      params: { productId: product.id, returnTo: `/product/${product.id}` },
+    });
   };
 
   return (
@@ -150,6 +195,19 @@ export default function ProductDetailsScreen() {
                   <Ionicons name="create-outline" size={20} color="#2B3A7E" />
                   <Text style={styles.editBtnText}>Edit Product</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                  <Text style={styles.deleteBtnText}>Delete Product</Text>
+                </TouchableOpacity>
+              </RoleBasedView>
+
+              <RoleBasedView roles={['staff']}>
+                {isLow && (
+                  <TouchableOpacity style={styles.restockBtn} onPress={handleRequestRestock}>
+                    <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+                    <Text style={styles.restockBtnText}>Request Restock</Text>
+                  </TouchableOpacity>
+                )}
               </RoleBasedView>
             </ScrollView>
           ) : (
@@ -272,5 +330,27 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
   },
   editBtnText: { color: '#2B3A7E', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
+  deleteBtn: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  deleteBtnText: { color: '#DC2626', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
+  restockBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  restockBtnText: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
   movementsContainer: { flex: 1, marginTop: 8 },
 });

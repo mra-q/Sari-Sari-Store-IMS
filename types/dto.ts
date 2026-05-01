@@ -47,7 +47,7 @@ export interface StockMovementDTO {
     | 'damage'
     | 'return'
     | 'theft'
-    | 'received'
+    | 'restock'
     | 'adjustment'
     | 'cycle_count'
     | 'misc';

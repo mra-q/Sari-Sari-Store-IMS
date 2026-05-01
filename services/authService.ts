@@ -192,10 +192,45 @@ export const changePassword = async (
   }
 };
 
+export const forgotPassword = async (email: string): Promise<string> => {
+  try {
+    console.log('🔵 Forgot Password Request:', email);
+    console.log('📍 API URL:', `${apiClient.defaults.baseURL}/auth/forgot-password/`);
+    const response = await apiClient.post('/auth/forgot-password/', { email });
+    console.log('✅ Reset code received:', response.data.reset_code);
+    return response.data.reset_code;
+  } catch (error) {
+    console.error('❌ Forgot password failed:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Response:', error.response?.data);
+      console.error('Status:', error.response?.status);
+    }
+    throw new Error(extractAuthErrorMessage(error, 'Unable to send reset code.'));
+  }
+};
+
+export const resetPassword = async (
+  email: string,
+  resetCode: string,
+  newPassword: string,
+): Promise<void> => {
+  try {
+    await apiClient.post('/auth/reset-password/', {
+      email,
+      reset_code: resetCode,
+      new_password: newPassword,
+    });
+  } catch (error) {
+    throw new Error(extractAuthErrorMessage(error, 'Unable to reset password.'));
+  }
+};
+
 export const authService = {
   login,
   refreshSession,
   registerOwner,
   logout,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };

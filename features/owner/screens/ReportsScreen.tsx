@@ -44,12 +44,12 @@ export default function ReportsScreen() {
 
   const categoryChartData = useMemo(() => {
     return {
-      labels: summary?.categorySummary.map((item) => item.category) ?? [],
-      datasets: [{ data: summary?.categorySummary.map((item) => item.count) ?? [] }],
+      labels: summary?.categorySummary?.map((item) => item.category) ?? [],
+      datasets: [{ data: summary?.categorySummary?.map((item) => item.count) ?? [] }],
     };
   }, [summary]);
 
-  const totalCategories = summary?.categorySummary.length ?? 0;
+  const totalCategories = summary?.categorySummary?.length ?? 0;
   const inventoryValue = summary?.estimatedInventoryValue ?? 0;
 
   return (
@@ -131,6 +131,13 @@ export default function ReportsScreen() {
                 <View style={styles.snapshotRow}>
                   <View style={styles.snapshotItem}>
                     <View style={styles.snapshotIconWrap}>
+                      <Ionicons name="layers-outline" size={16} color="#dd27f9" />
+                    </View>
+                    <Text style={styles.snapshotValue}>{summary?.categorySummary?.length ?? 0}</Text>
+                    <Text style={styles.snapshotLabel}>Categories</Text>
+                  </View>
+                  <View style={styles.snapshotItem}>
+                    <View style={styles.snapshotIconWrap}>
                       <Ionicons name="cube-outline" size={16} color="#2B3A7E" />
                     </View>
                     <Text style={styles.snapshotValue}>{summary?.totalProducts ?? 0}</Text>
@@ -153,35 +160,6 @@ export default function ReportsScreen() {
                 </View>
               </View>
 
-              <View style={styles.metricsRow}>
-                <AnalyticsCard
-                  title="Total Products"
-                  value={String(summary?.totalProducts ?? 0)}
-                  icon="cube-outline"
-                />
-                <AnalyticsCard
-                  title="Low Stock"
-                  value={String(summary?.lowStockCount ?? 0)}
-                  icon="alert-circle-outline"
-                  accentColor="#F59E0B"
-                />
-              </View>
-
-              <View style={styles.metricsRow}>
-                <AnalyticsCard
-                  title="Stock Added Today"
-                  value={String(summary?.stockAddedToday ?? 0)}
-                  icon="add-circle-outline"
-                  accentColor="#10B981"
-                />
-                <AnalyticsCard
-                  title="Categories"
-                  value={String(summary?.categorySummary.length ?? 0)}
-                  icon="layers-outline"
-                  accentColor="#6366F1"
-                />
-              </View>
-
               <View style={styles.chartShell}>
                 <ChartCard title="Category Distribution" subtitle="Products by category">
                   {categoryChartData.labels.length === 0 ? (
@@ -194,6 +172,7 @@ export default function ReportsScreen() {
                       fromZero
                       showValuesOnTopOfBars
                       yAxisLabel=""
+                      yAxisSuffix=""
                       chartConfig={{
                         backgroundColor: '#FFFFFF',
                         backgroundGradientFrom: '#FFFFFF',
@@ -272,11 +251,11 @@ export default function ReportsScreen() {
                     </Text>
                   </View>
                 </View>
-                {summary?.categorySummary.map((item) => {
+                {(summary?.categorySummary ?? []).map((item) => {
                   const maxCount = Math.max(
-                    ...(summary?.categorySummary.map((entry) => entry.count) ?? [1]),
+                    ...(summary?.categorySummary?.map((entry) => entry.count) ?? [1]),
                   );
-                  const barWidth = `${Math.max((item.count / maxCount) * 100, 12)}%`;
+                  const barWidthPercent = Math.max((item.count / maxCount) * 100, 12);
 
                   return (
                     <View key={item.category} style={styles.categorySummaryCard}>
@@ -285,7 +264,7 @@ export default function ReportsScreen() {
                         <Text style={styles.itemValue}>{item.count} products</Text>
                       </View>
                       <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: barWidth }]} />
+                        <View style={[styles.progressFill, { width: `${barWidthPercent}%` }]} />
                       </View>
                     </View>
                   );
@@ -454,14 +433,14 @@ const styles = StyleSheet.create({
   },
   snapshotRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   snapshotItem: {
     flex: 1,
     backgroundColor: '#F8FAFC',
     borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   snapshotIconWrap: {
     width: 30,
@@ -473,13 +452,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   snapshotValue: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#111827',
     fontFamily: 'Poppins_700Bold',
     marginBottom: 4,
   },
   snapshotLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748B',
     fontFamily: 'Poppins_500Medium',
   },

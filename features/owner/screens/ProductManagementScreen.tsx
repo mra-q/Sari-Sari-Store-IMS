@@ -14,12 +14,14 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CardboardHeader from '@/components/CardboardHeader';
 import ProductItem from '@/components/ProductItem';
+import { getInventorySummary } from '@/services/inventoryService';
 import { getProducts } from '@/services/productService';
-import type { Product } from '@/types/product';
+import type { InventorySummary, Product } from '@/types/product';
 import { formatCurrency } from '@/utils/helpers';
 
 export default function ProductManagementScreen() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -28,8 +30,12 @@ export default function ProductManagementScreen() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const data = await getProducts();
+      const [data, summaryData] = await Promise.all([
+        getProducts(),
+        getInventorySummary(),
+      ]);
       setProducts(data);
+      setSummary(summaryData);
     } catch {
       Alert.alert('Error', 'Unable to load products.');
     } finally {
@@ -56,24 +62,6 @@ export default function ProductManagementScreen() {
       return searchMatched && categoryMatched;
     });
   }, [products, search, selectedCategory]);
-
-  const totalInventoryValue = useMemo(
-    () => products.reduce((sum, product) => sum + product.price * product.stock, 0),
-    [products],
-  );
-
-  const lowStockCount = useMemo(
-    () =>
-      products.filter(
-        (product) => product.stock <= (product.minimumStockLevel ?? 0),
-      ).length,
-    [products],
-  );
-
-  const outOfStockCount = useMemo(
-    () => products.filter((product) => product.stock <= 0).length,
-    [products],
-  );
 
   const hasActiveFilters = search.trim().length > 0 || selectedCategory !== 'All';
 
@@ -113,23 +101,25 @@ export default function ProductManagementScreen() {
 
               <View style={styles.heroStatsRow}>
                 <View style={styles.heroStatCard}>
-                  <Text style={styles.heroStatValue}>{products.length}</Text>
+                  <Text style={styles.heroStatValue}>{summary?.totalProducts ?? products.length}</Text>
                   <Text style={styles.heroStatLabel}>Products</Text>
                 </View>
                 <View style={styles.heroStatCard}>
-                  <Text style={styles.heroStatValue}>{categories.length - 1}</Text>
+                  <Text style={styles.heroStatValue}>{summary?.categorySummary?.length ?? categories.length - 1}</Text>
                   <Text style={styles.heroStatLabel}>Categories</Text>
                 </View>
                 <View style={styles.heroStatCard}>
-                  <Text style={styles.heroStatValue}>{outOfStockCount}</Text>
+                  <Text style={styles.heroStatValue}>{summary?.outOfStockCount ?? 0}</Text>
                   <Text style={styles.heroStatLabel}>Out of Stock</Text>
                 </View>
               </View>
 
               <View style={styles.heroFooter}>
-                <View>
+                <View style={styles.heroFooterLeft}>
                   <Text style={styles.heroFooterLabel}>Estimated catalog value</Text>
-                  <Text style={styles.heroFooterValue}>{formatCurrency(totalInventoryValue)}</Text>
+                  <Text style={styles.heroFooterValue}>
+                    {formatCurrency(summary?.estimatedInventoryValue ?? 0)}
+                  </Text>
                 </View>
                 <View style={styles.quickActionRow}>
                   <TouchableOpacity
@@ -137,7 +127,7 @@ export default function ProductManagementScreen() {
                     onPress={() => router.push('/(owner)/add-product')}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
+                    <Ionicons name="add-circle-outline" size={12} color="#FFFFFF" />
                     <Text style={styles.primaryQuickActionText}>Add Product</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -145,7 +135,7 @@ export default function ProductManagementScreen() {
                     onPress={() => router.push('/(owner)/categories')}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="pricetags-outline" size={16} color="#2B3A7E" />
+                    <Ionicons name="pricetags-outline" size={10} color="#2B3A7E" />
                     <Text style={styles.secondaryQuickActionText}>Categories</Text>
                   </TouchableOpacity>
                 </View>
@@ -154,7 +144,7 @@ export default function ProductManagementScreen() {
 
             <View style={styles.reviewRow}>
               <View style={styles.reviewCard}>
-                <Text style={styles.reviewValue}>{lowStockCount}</Text>
+                <Text style={styles.reviewValue}>{summary?.lowStockCount ?? 0}</Text>
                 <Text style={styles.reviewLabel}>Need reorder review</Text>
               </View>
               <View style={styles.reviewCard}>
@@ -471,9 +461,12 @@ const styles = StyleSheet.create({
   heroFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: 12,
     marginTop: 16,
+  },
+  heroFooterLeft: {
+    flex: 1,
   },
   reviewRow: {
     flexDirection: 'row',
@@ -507,39 +500,42 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heroFooterValue: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#2B3A7E',
     fontFamily: 'Poppins_700Bold',
   },
   quickActionRow: {
     flexDirection: 'row',
     gap: 8,
+    flexShrink: 1,
   },
   primaryQuickAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#2B3A7E',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    flexShrink: 1,
   },
   primaryQuickActionText: {
-    fontSize: 12,
+    fontSize: 8,
     color: '#FFFFFF',
     fontFamily: 'Poppins_600SemiBold',
   },
   secondaryQuickAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#EEF4FF',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexShrink: 1,
   },
   secondaryQuickActionText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#2B3A7E',
     fontFamily: 'Poppins_600SemiBold',
   },
@@ -573,7 +569,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: 'Poppins_400Regular',
     marginTop: 2,
-    maxWidth: 240,
+    maxWidth: 200,
   },
   activeFilterBadge: {
     flexDirection: 'row',
@@ -581,11 +577,12 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: '#EAF1FF',
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexShrink: 1,
   },
   activeFilterText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#2B3A7E',
     fontFamily: 'Poppins_600SemiBold',
   },
@@ -595,11 +592,12 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: '#F8FAFC',
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexShrink: 1,
   },
   passiveFilterText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748B',
     fontFamily: 'Poppins_500Medium',
   },

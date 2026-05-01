@@ -28,7 +28,7 @@ interface BackendCategory {
   created_at?: string;
 }
 
-interface BackendProduct {
+export interface BackendProduct {
   id: number;
   name: string;
   sku: string;
@@ -122,7 +122,7 @@ const generateSku = (input: ProductInput) => {
   return `${base}-${barcodeSegment}`;
 };
 
-const mapBackendProductToProduct = (product: BackendProduct): Product => ({
+export const mapBackendProductToProduct = (product: BackendProduct): Product => ({
   id: String(product.id),
   name: sanitizeText(product.name) || 'Unnamed Product',
   barcode: sanitizeText(product.barcode),
@@ -201,6 +201,11 @@ const syncInventoryQuantity = async (productId: number, quantity: number, sku?: 
 
 const getProducts = async (): Promise<Product[]> => {
   const products = await fetchAllPages<BackendProduct>('/products/');
+  return products.map(mapBackendProductToProduct);
+};
+
+const getLowStockProductsFromBackend = async (): Promise<Product[]> => {
+  const products = await fetchAllPages<BackendProduct>('/products/low_stock/');
   return products.map(mapBackendProductToProduct);
 };
 
@@ -304,6 +309,10 @@ const updateProductStock = async (id: string, stock: number): Promise<Product> =
   return updatedProduct;
 };
 
+const deleteProduct = async (id: string): Promise<void> => {
+  await apiClient.delete(`/products/${id}/`);
+};
+
 export const updateStock = updateProductStock;
 
 export const getCategoriesForDropdown = async (): Promise<{ id: string; name: string }[]> => {
@@ -321,18 +330,22 @@ export const getCategoriesForDropdown = async (): Promise<{ id: string; name: st
 
 export const productService = {
   getProducts,
+  getLowStockProductsFromBackend,
   getProductById,
   getProductByBarcode,
   updateProductStock,
   updateStock,
   createProduct,
   updateProduct,
+  deleteProduct,
 };
 
 export {
   createProduct,
+  deleteProduct,
   getProductByBarcode,
   getProductById,
+  getLowStockProductsFromBackend,
   getProducts,
   updateProduct,
   updateProductStock,

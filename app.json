@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Inventory",
+    "name": "TindaTrack",
     "slug": "Inventory",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,8 +16,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "icon": "./assets/images/inv-icon.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/inv-icon-adaptive.png"
       },
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [

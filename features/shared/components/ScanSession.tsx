@@ -36,7 +36,7 @@ interface ScanSessionProps {
 }
 
 const COOLDOWN_MS = 1500;
-const SCAN_REASONS: MovementReason[] = ['received', 'sale', 'return', 'damage', 'theft', 'misc'];
+const SCAN_REASONS: MovementReason[] = ['restock', 'sale', 'return', 'damage', 'theft', 'misc'];
 const SUPPORTED_BARCODE_TYPES = [
   'ean13',
   'ean8',
@@ -59,7 +59,7 @@ export default function ScanSession({ mode, onModeChange, allowAddProduct = fals
   const [isScanning, setIsScanning] = useState(true);
   const [history, setHistory] = useState<ScanEntry[]>([]);
   const [applying, setApplying] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<MovementReason>('received');
+  const [selectedReason, setSelectedReason] = useState<MovementReason>('restock');
   const lastScanRef = useRef<{ data: string; time: number } | null>(null);
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {

@@ -64,7 +64,6 @@ export default function CardboardHeader({
         { label: 'Products', icon: 'grid-outline', route: '/(owner)/product-management' },
         { label: 'Staff', icon: 'people-outline', route: '/(owner)/staff' },
         { label: 'Reports', icon: 'bar-chart-outline', route: '/(owner)/reports' },
-        { label: 'Profile', icon: 'person-outline', route: '/(owner)/profile' },
       ];
     }
 
@@ -72,7 +71,6 @@ export default function CardboardHeader({
       { label: 'Inventory', icon: 'cube-outline', route: '/(staff)/inventory' },
       { label: 'Low Stock', icon: 'alert-circle-outline', route: '/(staff)/low-stock' },
       { label: 'Scan', icon: 'scan-outline', route: '/(staff)/scan' },
-      { label: 'Profile', icon: 'person-outline', route: '/(staff)/profile' },
     ];
   }, [isOwner, segments]);
 

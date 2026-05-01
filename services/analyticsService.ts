@@ -1,4 +1,3 @@
-import api from './api';
 import { apiRequest } from './api';
 
 export type AnalyticsPeriod = 'weekly' | 'monthly' | 'annual';

@@ -19,6 +19,7 @@ export interface Product {
 export interface InventorySummary {
   totalProducts: number;
   lowStockCount: number;
+  outOfStockCount?: number;
   stockAddedToday: number;
   totalStockUnits: number;
   estimatedInventoryValue: number;

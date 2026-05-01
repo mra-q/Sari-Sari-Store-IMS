@@ -2,9 +2,10 @@ import CardboardHeader from '@/components/CardboardHeader';
 import ProductItem from '@/components/ProductItem';
 import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { getInventorySummary } from '@/services/inventoryService';
 import { getProducts } from '@/services/productService';
 import { createStockMovement } from '@/services/stockMovementService';
-import type { Product } from '@/types/product';
+import type { InventorySummary, Product } from '@/types/product';
 import { formatCurrency } from '@/utils/helpers';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -31,13 +32,18 @@ export default function InventoryScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getProducts();
+      const [data, summaryData] = await Promise.all([
+        getProducts(),
+        getInventorySummary(),
+      ]);
       setProducts(data);
+      setSummary(summaryData);
     } catch {
       Alert.alert('Error', 'Unable to load products.');
     } finally {
@@ -66,24 +72,6 @@ export default function InventoryScreen() {
       return searchMatched && categoryMatched;
     });
   }, [products, search, selectedCategory]);
-
-  const lowStockCount = useMemo(
-    () =>
-      products.filter(
-        (product) => product.stock <= (product.minimumStockLevel ?? 0),
-      ).length,
-    [products],
-  );
-
-  const totalUnits = useMemo(
-    () => products.reduce((sum, product) => sum + product.stock, 0),
-    [products],
-  );
-
-  const inventoryValue = useMemo(
-    () => products.reduce((sum, product) => sum + product.price * product.stock, 0),
-    [products],
-  );
 
   const inventoryRoutePrefix = user?.role === 'owner' ? '/(owner)' : '/(staff)';
 
@@ -149,15 +137,15 @@ export default function InventoryScreen() {
 
               <View style={styles.workspaceStatsRow}>
                 <View style={styles.workspaceStatCard}>
-                  <Text style={styles.workspaceStatValue}>{products.length}</Text>
+                  <Text style={styles.workspaceStatValue}>{summary?.totalProducts ?? products.length}</Text>
                   <Text style={styles.workspaceStatLabel}>Products</Text>
                 </View>
                 <View style={styles.workspaceStatCard}>
-                  <Text style={styles.workspaceStatValue}>{totalUnits}</Text>
+                  <Text style={styles.workspaceStatValue}>{summary?.totalStockUnits ?? 0}</Text>
                   <Text style={styles.workspaceStatLabel}>Stock Units</Text>
                 </View>
                 <View style={styles.workspaceStatCard}>
-                  <Text style={styles.workspaceStatValue}>{lowStockCount}</Text>
+                  <Text style={styles.workspaceStatValue}>{summary?.lowStockCount ?? 0}</Text>
                   <Text style={styles.workspaceStatLabel}>Low Stock</Text>
                 </View>
               </View>
@@ -166,7 +154,7 @@ export default function InventoryScreen() {
                 <View>
                   <Text style={styles.workspaceFooterLabel}>Estimated stock value</Text>
                   <Text style={styles.workspaceFooterValue}>
-                    {formatCurrency(inventoryValue)}
+                    {formatCurrency(summary?.estimatedInventoryValue ?? 0)}
                   </Text>
                 </View>
 
@@ -255,6 +243,23 @@ export default function InventoryScreen() {
                     </View>
                     <Text style={styles.actionLabel}>Cycle Count</Text>
                     <Text style={styles.actionHelper}>Perform inventory counts</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.staffActionCard}
+                    onPress={() => router.push('/(staff)/restock-request')}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.actionTopRow}>
+                      <View style={[styles.actionIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                        <Ionicons name="add-circle-outline" size={18} color="#DC2626" />
+                      </View>
+                      <View style={styles.actionArrowWrap}>
+                        <Ionicons name="arrow-forward" size={14} color="#2B3A7E" />
+                      </View>
+                    </View>
+                    <Text style={styles.actionLabel}>Request Restock</Text>
+                    <Text style={styles.actionHelper}>Submit restock requests</Text>
                   </TouchableOpacity>
                 </View>
               </View>

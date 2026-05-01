@@ -27,6 +27,7 @@ export default function StaffLayout() {
       <Tabs.Screen name="low-stock" />
       <Tabs.Screen name="scan" />
       {/* Non-tab screens */}
+      <Tabs.Screen name="restock-request" options={{ href: null }} />
       <Tabs.Screen name="stock-adjustment" options={{ href: null }} />
       <Tabs.Screen name="activity-log" options={{ href: null }} />
       <Tabs.Screen name="update-stock" options={{ href: null }} />

@@ -9,11 +9,16 @@ import { RoleBasedView } from '@/components/RoleBasedView';
 import { getProductById, updateProduct } from '@/services/productService';
 
 export default function EditProductScreen() {
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string | string[]; from?: string | string[] }>();
   const productId = useMemo(() => {
     if (!params.id) return '';
     return Array.isArray(params.id) ? params.id[0] : params.id;
   }, [params.id]);
+
+  const fromScreen = useMemo(() => {
+    if (!params.from) return 'management';
+    return Array.isArray(params.from) ? params.from[0] : params.from;
+  }, [params.from]);
 
   const [name, setName] = useState('');
   const [barcode, setBarcode] = useState('');
@@ -64,6 +69,14 @@ export default function EditProductScreen() {
     );
   }, [name, barcode, category, price, stock]);
 
+  const handleGoBack = () => {
+    if (fromScreen === 'details') {
+      router.replace(`/product/${productId}`);
+    } else {
+      router.replace('/(owner)/product-management');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!isValid || !productId) {
       setError('Please complete all required fields.');
@@ -92,7 +105,7 @@ export default function EditProductScreen() {
         minimumStockLevel: Number.isNaN(minimumValue) ? undefined : minimumValue,
       });
       Alert.alert('Product Updated', `${updated.name} has been updated.`);
-      router.replace(`/product/${updated.id}`);
+      handleGoBack();
     } catch {
       setError('Unable to update product. Please try again.');
     } finally {
@@ -102,7 +115,7 @@ export default function EditProductScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <Header title="Edit Product" onBackPress={() => router.back()} />
+      <Header title="Edit Product" onBackPress={handleGoBack} />
 
       <RoleBasedView
         roles={['owner']}
@@ -183,7 +196,7 @@ export default function EditProductScreen() {
                 <ActionButton
                   label="Cancel"
                   variant="ghost"
-                  onPress={() => router.back()}
+                  onPress={handleGoBack}
                 />
               </View>
             </>

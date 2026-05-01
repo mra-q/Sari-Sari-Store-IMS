@@ -18,7 +18,7 @@ interface BackendStockMovement {
   id: number;
   product: number;
   product_name?: string;
-  movement_type: 'in' | 'out' | 'adjustment';
+  movement_type: 'in' | 'out' | 'adjustment' | 'stock_in' | 'stock_out';
   quantity: number;
   reason: string;
   performed_by?: number | null;
@@ -56,7 +56,7 @@ const fetchAllPages = async <T,>(url: string): Promise<T[]> => {
 };
 
 const normalizeMovementDirection = (movementType: BackendStockMovement['movement_type']): MovementDirection => {
-  return movementType === 'in' ? 'in' : 'out';
+  return movementType === 'in' || movementType === 'stock_in' ? 'in' : 'out';
 };
 
 const normalizeMovementReason = (
@@ -66,15 +66,16 @@ const normalizeMovementReason = (
   const normalizedReason = rawReason?.trim().toLowerCase();
 
   if (!normalizedReason) {
-    return fallbackDirection === 'in' ? 'received' : 'sale';
+    return fallbackDirection === 'in' ? 'restock' : 'sale';
   }
 
   const exactMatchReasons: MovementReason[] = [
     'sale',
+    'restock',
     'damage',
+    'expired',
     'return',
     'theft',
-    'received',
     'adjustment',
     'cycle_count',
     'misc',
@@ -85,14 +86,15 @@ const normalizeMovementReason = (
   }
 
   if (normalizedReason.includes('cycle')) return 'cycle_count';
-  if (normalizedReason.includes('receive') || normalizedReason.includes('restock')) return 'received';
+  if (normalizedReason.includes('receive') || normalizedReason.includes('restock')) return 'restock';
   if (normalizedReason.includes('return')) return 'return';
   if (normalizedReason.includes('damage')) return 'damage';
+  if (normalizedReason.includes('expire')) return 'expired';
   if (normalizedReason.includes('theft') || normalizedReason.includes('lost')) return 'theft';
   if (normalizedReason.includes('adjust')) return 'adjustment';
   if (normalizedReason.includes('sale') || normalizedReason.includes('sold')) return 'sale';
 
-  return fallbackDirection === 'in' ? 'received' : 'misc';
+  return fallbackDirection === 'in' ? 'restock' : 'misc';
 };
 
 export const getStockMovements = async (productId?: string): Promise<StockMovement[]> => {
@@ -158,7 +160,7 @@ export const createStockMovement = async (
 
   const response = await apiClient.post('/stock/movements/', {
     product: Number(input.productId),
-    movement_type: input.direction === 'in' ? 'in' : 'out',
+    movement_type: input.direction === 'in' ? 'stock_in' : 'stock_out',
     quantity: input.quantity,
     reason: input.reason,
   });

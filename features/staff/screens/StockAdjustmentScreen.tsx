@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Header from '@/components/Header';
 import StockAdjustmentForm from '@/features/shared/components/StockAdjustmentForm';
 import ConfirmModal from '@/features/shared/components/ConfirmModal';
@@ -11,6 +11,7 @@ import type { MovementDirection, MovementReason } from '@/types/stockMovement';
 import { MOVEMENT_REASON_LABELS } from '@/types/stockMovement';
 
 export default function StaffStockAdjustmentScreen() {
+  const params = useLocalSearchParams<{ productId?: string; returnTo?: string }>();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<{
@@ -33,17 +34,19 @@ export default function StaffStockAdjustmentScreen() {
 
   const handleConfirm = async () => {
     if (!pendingPayload || !user) return;
+    const payload = pendingPayload;
     setPendingPayload(null);
     setSubmitting(true);
     try {
-      await createStockMovement(pendingPayload, user.id, user.name);
-      Alert.alert('Success', 'Stock adjustment recorded.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Failed to record adjustment.');
-    } finally {
+      await createStockMovement(payload, user.id, user.name);
       setSubmitting(false);
+      router.dismiss();
+      setTimeout(() => {
+        Alert.alert('Success', 'Stock adjustment recorded.');
+      }, 100);
+    } catch (err: any) {
+      setSubmitting(false);
+      Alert.alert('Error', err?.message ?? 'Failed to record adjustment.');
     }
   };
 
@@ -53,8 +56,12 @@ export default function StaffStockAdjustmentScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <Header title="Stock Adjustment" onBackPress={() => router.back()} />
-      <StockAdjustmentForm onSubmit={handleSubmit} submitting={submitting} />
+      <Header title="Stock Adjustment" onBackPress={() => router.dismiss()} />
+      <StockAdjustmentForm 
+        preselectedProductId={params.productId} 
+        onSubmit={handleSubmit} 
+        submitting={submitting} 
+      />
       <ConfirmModal
         visible={!!pendingPayload}
         title="Confirm Adjustment"

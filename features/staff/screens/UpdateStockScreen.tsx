@@ -55,7 +55,7 @@ export default function UpdateStockScreen() {
     }
     try {
       const movement = await createStockMovement(
-        { productId: product.id, direction: 'in', reason: 'received', quantity: 1 },
+        { productId: product.id, direction: 'in', reason: 'restock', quantity: 1 },
         user.id,
         user.name,
       );

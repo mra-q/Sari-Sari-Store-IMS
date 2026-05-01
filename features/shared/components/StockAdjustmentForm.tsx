@@ -15,7 +15,7 @@ import type { MovementReason, MovementDirection } from '@/types/stockMovement';
 import { MOVEMENT_REASON_LABELS, MOVEMENT_REASON_DIRECTIONS } from '@/types/stockMovement';
 
 const OUT_REASONS: MovementReason[] = ['sale', 'damage', 'theft', 'misc'];
-const IN_REASONS: MovementReason[] = ['received', 'return', 'adjustment', 'misc'];
+const IN_REASONS: MovementReason[] = ['restock', 'return', 'adjustment', 'misc'];
 
 interface StockAdjustmentFormProps {
   preselectedProductId?: string;
@@ -44,6 +44,9 @@ export default function StockAdjustmentForm({
   const [error, setError] = useState('');
 
   const reasons = direction === 'out' ? OUT_REASONS : IN_REASONS;
+  const filteredProducts = preselectedProductId 
+    ? products.filter((p) => p.id === preselectedProductId)
+    : products;
   const selectedProduct = products.find((p) => p.id === selectedProductId);
   const quantity = parseInt(quantityText, 10);
 
@@ -55,7 +58,7 @@ export default function StockAdjustmentForm({
 
   useEffect(() => {
     // Reset reason when direction changes
-    setReason(direction === 'out' ? 'sale' : 'received');
+    setReason(direction === 'out' ? 'sale' : 'restock');
   }, [direction]);
 
   const validate = (): boolean => {
@@ -108,7 +111,7 @@ export default function StockAdjustmentForm({
       {/* Product Selector */}
       <Text style={styles.label}>Product</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productScroll}>
-        {products.map((p) => (
+        {filteredProducts.map((p) => (
           <TouchableOpacity
             key={p.id}
             style={[styles.productChip, selectedProductId === p.id && styles.productChipActive]}
